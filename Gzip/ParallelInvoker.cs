@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Gzip
@@ -26,47 +27,60 @@ namespace Gzip
 
         private readonly Queue<TProcessedChunk> _queue = new Queue<TProcessedChunk>();
 
-        private readonly SemaphoreSlim _semaphoreRead = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _semaphoreRead = new SemaphoreSlim(1);
         private readonly object _locker = new object();
         private bool _ended = false;
+        private bool _canceled = false;
 
-        private IEnumerator<TChunk> _enumerator;
+        private IEnumerator<Chunk<TChunk>> _enumerator;
+
+        private long _currentBlock;
+
+        private readonly ICollection<Exception> _exceptionCollection = new List<Exception>();
 
         public ParallelInvoker(T conveyor)
         {
             _conveyor = conveyor;
-            _maxDegreeOfParallelism = Environment.ProcessorCount / 2;
+            _maxDegreeOfParallelism = Environment.ProcessorCount;
         }
 
         public void Invoke()
         {
-            _enumerator = _conveyor.Initialize().GetEnumerator();
+            //i - int. Возможно стоит поменять на long
+            _enumerator = _conveyor.Initialize().Select((chunk, i) => new Chunk<TChunk>(i, chunk)).GetEnumerator();
+            _currentBlock = 0L;
+
             try
             {
-                _autoResetEventWrite = new AutoResetEvent(false);
-                var threadW = new Thread(Complete);
-
-
-                _autoResetEvents = new WaitHandle[_maxDegreeOfParallelism];
+                var events = new WaitHandle[_maxDegreeOfParallelism];
                 for (var i = 0; i < _maxDegreeOfParallelism; i++)
                 {
                     var autoResetEvent = new AutoResetEvent(false);
 
-                    _autoResetEvents[i] = autoResetEvent;
+                    events[i] = autoResetEvent;
 
-                    ThreadHelper.StartThread(Start, autoResetEvent);
+                    ThreadHelper.StartThread(Work, autoResetEvent, LogAction);
                 }
 
-                threadW.Start();
+                var eventWrite = new AutoResetEvent(false);
+                ThreadHelper.StartThread(Complete, eventWrite, LogAction);
 
-                WaitHandle.WaitAll(_autoResetEvents);
+                WaitHandle.WaitAll(events);
                 lock (_locker)
                 {
                     _ended = true;
                     Monitor.PulseAll(_locker);
                 }
 
-                _autoResetEventWrite.WaitOne();
+                eventWrite.WaitOne();
+
+                lock (_locker)
+                {
+                    if (_exceptionCollection.Any())
+                    {
+                        throw new AggregateException(_exceptionCollection);
+                    }
+                }
             }
             finally
             {
@@ -74,48 +88,73 @@ namespace Gzip
             }
         }
 
-
-        private AutoResetEvent _autoResetEventWrite;
-        private WaitHandle[] _autoResetEvents;
-
-
-        private void Start(AutoResetEvent autoResetEvent)
+        /// <summary>
+        /// Сбор исключений
+        /// </summary>
+        /// <param name="exception"></param>
+        private void LogAction(Exception exception)
         {
-            var (item1, chunk) = Get();
-            do
+            lock (_locker)
             {
-                var processedChunk = _conveyor.Iterate(chunk);
+                _canceled = true;
+                Monitor.PulseAll(_locker);
+
+                _exceptionCollection.Add(exception);
+            }
+        }
+
+        /// <summary>
+        /// Основной метод обработки, вызываемый в нескольких потоках
+        /// </summary>
+        private void Work()
+        {
+            var chunk = Get();
+            while (chunk != null)
+            {
+                var processedChunk = _conveyor.Iterate(chunk.Block);
 
                 lock (_locker)
                 {
+                    if (_canceled) return;
+
+                    //Плохое место, надо научиться определять нужный поток
+                    while (_currentBlock != chunk.Id)
+                    {
+                        if (_canceled) return;
+                        Monitor.Wait(_locker);
+                    }
+
                     _queue.Enqueue(processedChunk);
+                    Interlocked.Increment(ref _currentBlock);
                     Monitor.PulseAll(_locker);
 
+                    //если у нас накопились блоки, то подождем, пока они не запишутся
                     while (_queue.Count > _maxDegreeOfParallelism)
                     {
+                        if (_canceled) return;
                         Monitor.Wait(_locker);
                     }
                 }
 
-                (item1, chunk) = Get();
-            } while (item1);
-
-            autoResetEvent.Set();
+                chunk = Get();
+            }
         }
 
-
-        private (bool b, TChunk enumeratorCurrent) Get()
+        /// <summary>
+        /// Получение очередного блока данных
+        /// </summary>
+        /// <returns></returns>
+        private Chunk<TChunk> Get()
         {
             _semaphoreRead.Wait();
-            if (_enumerator.MoveNext())
+            try
             {
-                var enumeratorCurrent = _enumerator.Current;
-                _semaphoreRead.Release();
-                return (true, enumeratorCurrent);
+                return _enumerator.MoveNext() ? _enumerator.Current : null;
             }
-
-            _semaphoreRead.Release();
-            return (false, default);
+            finally
+            {
+                _semaphoreRead.Release();
+            }
         }
 
         /// <summary>
@@ -124,8 +163,6 @@ namespace Gzip
         private void Complete()
         {
             _conveyor.Complete(CollectChunk());
-
-            _autoResetEventWrite.Set();
         }
 
         /// <summary>
@@ -138,10 +175,13 @@ namespace Gzip
             {
                 lock (_locker)
                 {
+                    if (_canceled) yield break;
+
                     TProcessedChunk chunk;
                     while (!_queue.TryDequeue(out chunk))
                     {
                         Monitor.Wait(_locker);
+                        if (_canceled) yield break;
                         if (_ended) yield break;
                     }
 
