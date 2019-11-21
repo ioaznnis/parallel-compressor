@@ -6,7 +6,7 @@
     public static class ParallelInvokerFactory
     {
         public static IParallelInvoker
-            Create<TChunk, TProcessedChunk>(IConveyorBase<TChunk, TProcessedChunk> conveyor) =>
-            new ParallelInvoker<IConveyorBase<TChunk, TProcessedChunk>, TChunk, TProcessedChunk>(conveyor);
+            Create<TChunk, TProcessedChunk>(ConveyorBase<TChunk, TProcessedChunk> conveyor) =>
+            new ParallelInvoker<ConveyorBase<TChunk, TProcessedChunk>, TChunk, TProcessedChunk>(conveyor);
     }
 }

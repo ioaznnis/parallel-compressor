@@ -6,7 +6,7 @@ using System.Threading;
 namespace Gzip
 {
     /// <summary>
-    /// Интерфейс для параллельного вычислителя <see cref="IConveyorBase{TChunk,TProcessedChunk}"/> для избавления от необходимости указывать generic аргументы
+    /// Интерфейс для параллельного вычислителя <see cref="ConveyorBase{TChunk,TProcessedChunk}"/> для избавления от необходимости указывать generic аргументы
     /// </summary>
     public interface IParallelInvoker
     {
@@ -20,14 +20,14 @@ namespace Gzip
     /// <typeparam name="TChunk"></typeparam>
     /// <typeparam name="TProcessedChunk"></typeparam>
     public class ParallelInvoker<T, TChunk, TProcessedChunk> : IParallelInvoker
-        where T : IConveyorBase<TChunk, TProcessedChunk>
+        where T : ConveyorBase<TChunk, TProcessedChunk>
     {
         private readonly T _conveyor;
         private readonly int _maxDegreeOfParallelism;
 
         private readonly Queue<TProcessedChunk> _queue = new Queue<TProcessedChunk>();
 
-        private readonly SemaphoreSlim _semaphoreRead = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _semaphoreRead = new SemaphoreSlim(1,1);
         private readonly object _locker = new object();
         private bool _ended = false;
         private bool _canceled = false;
@@ -180,9 +180,9 @@ namespace Gzip
                     TProcessedChunk chunk;
                     while (!_queue.TryDequeue(out chunk))
                     {
+                        if (_ended) yield break;
                         Monitor.Wait(_locker);
                         if (_canceled) yield break;
-                        if (_ended) yield break;
                     }
 
                     yield return chunk;

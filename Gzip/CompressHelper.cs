@@ -18,9 +18,7 @@ namespace Gzip
         /// <param name="outputPath"></param>
         public static void CompressByParallelInvoker(string inputPath, string outputPath)
         {
-            var compressConveyor = new CompressConveyor(inputPath, outputPath);
-            var parallelInvoker = ParallelInvokerFactory.Create(compressConveyor);
-            parallelInvoker.Invoke();
+            new CompressConveyor(File.OpenRead(inputPath), File.OpenWrite(outputPath)).ParallelRun();
         }
 
         /// <summary>
@@ -30,7 +28,7 @@ namespace Gzip
         /// <param name="outputPath"></param>
         public static void CompressParallel(string inputPath, string outputPath)
         {
-            var compressConveyor = new CompressConveyor(inputPath, outputPath);
+            var compressConveyor = new CompressConveyor(File.OpenRead(inputPath), File.OpenWrite(outputPath));
 
             var sequential = compressConveyor.Initialize()
                 .AsParallel().AsOrdered()
@@ -46,9 +44,7 @@ namespace Gzip
         /// <param name="outputPath"></param>
         public static void CompressSequential(string inputPath, string outputPath)
         {
-            var compressConveyor = new CompressConveyor(inputPath, outputPath);
-            var enumerable = compressConveyor.Initialize().Select(compressConveyor.Iterate);
-            compressConveyor.Complete(enumerable);
+            new CompressConveyor(File.OpenRead(inputPath), File.OpenWrite(outputPath)).SequentialRun();
         }
 
         /// <summary>

@@ -20,7 +20,7 @@ namespace Gzip
                             Console.WriteLine("Сжатие успешно");
                             return 0;
                         case decompressMode:
-                            DecompressHelper.UnGzip(args[1].Trim(), args[2].Trim());
+                            DecompressHelper.UnGzipByParallelInvoker(args[1].Trim(), args[2].Trim());
                             Console.WriteLine("Распаковка успешна");
                             return 0;
                     }

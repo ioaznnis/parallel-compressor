@@ -8,18 +8,17 @@ namespace Gzip
     /// <summary>
     /// Блочное сжатие файла.
     /// </summary>
-    /// <remarks>Открытые методы этого типа являются потокобезопасными</remarks>
-    public class CompressConveyor : IConveyorBase<byte[], Stream>
+    public class CompressConveyor : ConveyorBase<byte[], Stream>
     {
-        private readonly string _inputPath;
-        private readonly string _outputPath;
+        private readonly Stream _inputStream;
+        private readonly Stream _outputStream;
 
         private const int BufferSize = 1024 * 1024;
 
-        public CompressConveyor(string inputPath, string outputPath)
+        public CompressConveyor(Stream inputStream, Stream outputStream)
         {
-            _inputPath = inputPath;
-            _outputPath = outputPath;
+            _inputStream = inputStream;
+            _outputStream = outputStream;
         }
 
         /// <summary>
@@ -31,9 +30,9 @@ namespace Gzip
         /// Про это надо помнить или передавать поток извне...</remarks>
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<byte[]> Initialize()
+        public override IEnumerable<byte[]> Initialize()
         {
-            using (var read = File.OpenRead(_inputPath))
+            using (var read = _inputStream)
             {
                 int readLength;
                 var buffer = new byte[BufferSize];
@@ -52,7 +51,7 @@ namespace Gzip
         /// </summary>
         /// <param name="chunk"></param>
         /// <returns></returns>
-        public Stream Iterate(byte[] chunk)
+        public override Stream Iterate(byte[] chunk)
         {
             var memoryStream = new MemoryStream();
 
@@ -69,9 +68,9 @@ namespace Gzip
         /// Запись блоков в файл
         /// </summary>
         /// <param name="enumerable"></param>
-        public void Complete(IEnumerable<Stream> enumerable)
+        public override void Complete(IEnumerable<Stream> enumerable)
         {
-            using (var write = File.OpenWrite(_outputPath))
+            using (var write = _outputStream)
             {
                 foreach (var stream in enumerable)
                 {

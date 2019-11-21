@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace Gzip.Test
 {
-    public class Tests
+    public class StreamHelperTests
     {
         private MemoryStream _memoryStream;
 
@@ -45,9 +45,9 @@ namespace Gzip.Test
         [Test]
         public void TestCountChunk()
         {
-            Assert.AreEqual(DecompressHelper.SplitToChunk(_memoryStream).Count(), 2);
+            Assert.AreEqual(_memoryStream.SplitToChunk().Count(), 2);
 
-            Assert.AreEqual(DecompressHelper.SplitToChunk(Stream.Null).Count(), 0);
+            Assert.AreEqual(Stream.Null.SplitToChunk().Count(), 0);
         }
     }
 }
