@@ -6,7 +6,7 @@ namespace Gzip
     public static class StreamHelper
     {
         /// <summary>
-        /// Разделение GZip файла на чанки
+        /// Р Р°Р·РґРµР»РµРЅРёРµ GZip С„Р°Р№Р»Р° РЅР° С‡Р°РЅРєРё
         /// </summary>
         /// <param name="inputStream"></param>
         /// <returns></returns>

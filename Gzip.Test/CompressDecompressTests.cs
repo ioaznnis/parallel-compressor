@@ -37,9 +37,9 @@ namespace Gzip.Test
 
             new CompressConveyor(inputStream, outputStream).SequentialRun();
 
-            //Так как CompressConveyor закрывает поток,
-            //а перегрузку добавлять лень,
-            //то воспользуемся тем, что ToArray() умеет работать с закрытым потоком
+            //РўР°Рє РєР°Рє CompressConveyor Р·Р°РєСЂС‹РІР°РµС‚ РїРѕС‚РѕРє,
+            //Р° РїРµСЂРµРіСЂСѓР·РєСѓ РґРѕР±Р°РІР»СЏС‚СЊ Р»РµРЅСЊ,
+            //С‚Рѕ РІРѕСЃРїРѕР»СЊР·СѓРµРјСЃСЏ С‚РµРј, С‡С‚Рѕ ToArray() СѓРјРµРµС‚ СЂР°Р±РѕС‚Р°С‚СЊ СЃ Р·Р°РєСЂС‹С‚С‹Рј РїРѕС‚РѕРєРѕРј
             var compressedStream = new MemoryStream(outputStream.ToArray());
 
             var decompressStream = new MemoryStream();
@@ -79,9 +79,9 @@ namespace Gzip.Test
 
             new CompressConveyor(inputStream, outputStream).ParallelRun();
 
-            //Так как CompressConveyor закрывает поток,
-            //а перегрузку добавлять лень,
-            //то воспользуемся тем, что ToArray() умеет работать с закрытым потоком
+            //РўР°Рє РєР°Рє CompressConveyor Р·Р°РєСЂС‹РІР°РµС‚ РїРѕС‚РѕРє,
+            //Р° РїРµСЂРµРіСЂСѓР·РєСѓ РґРѕР±Р°РІР»СЏС‚СЊ Р»РµРЅСЊ,
+            //С‚Рѕ РІРѕСЃРїРѕР»СЊР·СѓРµРјСЃСЏ С‚РµРј, С‡С‚Рѕ ToArray() СѓРјРµРµС‚ СЂР°Р±РѕС‚Р°С‚СЊ СЃ Р·Р°РєСЂС‹С‚С‹Рј РїРѕС‚РѕРєРѕРј
             var compressedStream = new MemoryStream(outputStream.ToArray());
 
             var decompressStream = new MemoryStream();
